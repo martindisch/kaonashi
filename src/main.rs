@@ -1,5 +1,5 @@
 use eyre::{eyre, Result};
-use globset::{Glob, GlobSetBuilder};
+use globset::{Glob, GlobSet, GlobSetBuilder};
 use regex::Regex;
 use std::{
     env,
@@ -9,36 +9,45 @@ use std::{
 };
 use walkdir::WalkDir;
 
+const IGNORE: [&str; 4] = [
+    "**/node_modules",
+    "**/dist",
+    "**/global.type.ts",
+    "**/applications/shop-e2e",
+];
+const SOURCE_FILES: &str = "**/*.{ts,tsx}";
+
 fn main() -> Result<()> {
     let directory = env::args()
         .nth(1)
         .ok_or_else(|| eyre!("Missing argument target directory"))?;
 
-    let mut builder = GlobSetBuilder::new();
-    builder.add(Glob::new("**/node_modules")?);
-    builder.add(Glob::new("**/dist")?);
-    builder.add(Glob::new("**/global.type.ts")?);
-    builder.add(Glob::new("**/applications/shop-e2e")?);
-    let ignore_glob = builder.build()?;
-
-    let target_glob = Glob::new("**/*.{ts,tsx}")?.compile_matcher();
-
-    let mut writer = BufWriter::new(File::create("translations.txt")?);
-
+    let ignore_glob = build_globset(&IGNORE)?;
+    let target_glob = Glob::new(SOURCE_FILES)?.compile_matcher();
     let files = WalkDir::new(directory)
         .into_iter()
-        .filter_entry(|e| !ignore_glob.is_match(e.path()))
+        .filter_entry(|dir_entry| !ignore_glob.is_match(dir_entry.path()))
         .filter_map(Result::ok)
-        .filter(|e| target_glob.is_match(e.path()));
+        .filter(|dir_entry| target_glob.is_match(dir_entry.path()));
 
     let translation_regex = Regex::new(r#"__\("([^"]*)""#)?;
+    let mut result_writer = BufWriter::new(File::create("translations.txt")?);
     for file in files {
         for translation in find_matches(file.path(), &translation_regex)? {
-            writeln!(writer, "{translation}")?;
+            writeln!(result_writer, "{translation}")?;
         }
     }
 
     Ok(())
+}
+
+fn build_globset(patterns: &[&str]) -> Result<GlobSet> {
+    let mut builder = GlobSetBuilder::new();
+    for pattern in patterns {
+        builder.add(Glob::new(pattern)?);
+    }
+
+    Ok(builder.build()?)
 }
 
 fn find_matches(file: &Path, regex: &Regex) -> Result<Vec<String>> {
