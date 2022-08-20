@@ -3,6 +3,24 @@
 A testbed for different approaches of finding patterns in a large number of
 source files.
 
+## Usage
+
+Just point it to your target directory containing the sources with
+
+```console
+$ cargo run --release -- /path/to/src
+```
+
+and it will write a file `translations.txt` in your working directory with the
+found keys.
+
+To benchmark, do
+
+```console
+$ cargo build --release
+$ perf stat -r 100 target/release/kaonashi /path/to/src
+```
+
 ## License
 
 Licensed under either of
