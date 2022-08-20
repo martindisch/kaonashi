@@ -9,10 +9,10 @@ fn main() -> Result<()> {
         .ok_or_else(|| eyre!("Missing argument target directory"))?;
 
     let mut builder = GlobSetBuilder::new();
-    builder.add(Glob::new("**/node_modules/**")?);
-    builder.add(Glob::new("**/dist/**")?);
+    builder.add(Glob::new("**/node_modules")?);
+    builder.add(Glob::new("**/dist")?);
     builder.add(Glob::new("**/global.type.ts")?);
-    builder.add(Glob::new("applications/shop-e2e/**")?);
+    builder.add(Glob::new("**/applications/shop-e2e")?);
     let ignore_set = builder.build()?;
 
     let files = WalkDir::new(directory)
