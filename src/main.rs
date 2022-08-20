@@ -1,6 +1,10 @@
 use eyre::{eyre, Result};
 use globset::{Glob, GlobSetBuilder};
-use std::env;
+use std::{
+    env,
+    fs::File,
+    io::{BufWriter, Write},
+};
 use walkdir::WalkDir;
 
 fn main() -> Result<()> {
@@ -17,13 +21,15 @@ fn main() -> Result<()> {
 
     let target_glob = Glob::new("**/*.{ts,tsx}")?.compile_matcher();
 
+    let mut writer = BufWriter::new(File::create("results.txt")?);
+
     let files = WalkDir::new(directory)
         .into_iter()
         .filter_entry(|e| !ignore_glob.is_match(e.path()))
         .filter_map(Result::ok)
         .filter(|e| target_glob.is_match(e.path()));
     for file in files {
-        println!("{}", file.path().display());
+        writeln!(writer, "{}", file.path().display())?;
     }
 
     Ok(())
