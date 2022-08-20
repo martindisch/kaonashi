@@ -1,9 +1,11 @@
 use eyre::{eyre, Result};
 use globset::{Glob, GlobSetBuilder};
+use regex::Regex;
 use std::{
     env,
-    fs::File,
+    fs::{self, File},
     io::{BufWriter, Write},
+    path::Path,
 };
 use walkdir::WalkDir;
 
@@ -21,16 +23,30 @@ fn main() -> Result<()> {
 
     let target_glob = Glob::new("**/*.{ts,tsx}")?.compile_matcher();
 
-    let mut writer = BufWriter::new(File::create("results.txt")?);
+    let mut writer = BufWriter::new(File::create("translations.txt")?);
 
     let files = WalkDir::new(directory)
         .into_iter()
         .filter_entry(|e| !ignore_glob.is_match(e.path()))
         .filter_map(Result::ok)
         .filter(|e| target_glob.is_match(e.path()));
+
+    let translation_regex = Regex::new(r#"__\("([^"]*)""#)?;
     for file in files {
-        writeln!(writer, "{}", file.path().display())?;
+        for translation in find_matches(file.path(), &translation_regex)? {
+            writeln!(writer, "{translation}")?;
+        }
     }
 
     Ok(())
+}
+
+fn find_matches(file: &Path, regex: &Regex) -> Result<Vec<String>> {
+    let contents = fs::read_to_string(file)?;
+    let matches: Vec<String> = regex
+        .captures_iter(&contents)
+        .map(|captures| captures[1].to_string())
+        .collect();
+
+    Ok(matches)
 }
